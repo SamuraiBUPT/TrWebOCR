@@ -146,8 +146,8 @@ class TrRun(tornado.web.RequestHandler):
 
             response_data['data']['img_detected'] = 'data:image/jpeg;base64,' + img_detected_b64
         log_info = {
-            'ip': self.request.host,
-            'return': response_data,
+            # 'ip': self.request.host,
+            # 'return': response_data,
             'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         logger.info(json.dumps(log_info, cls=NpEncoder))
