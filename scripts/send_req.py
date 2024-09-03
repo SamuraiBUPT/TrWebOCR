@@ -9,17 +9,21 @@ async def fetch(session: ClientSession, url: str, file_path: str, sem: asyncio.S
     async with sem:
         form = FormData()
         form.add_field('file', open(file_path, 'rb'), filename=file_path, content_type='application/octet-stream')
-        form.add_field('compress', '0')
+        # form.add_field('compress', '0')
         
         async with session.post(url, data=form) as response:
-            results = await response.json()
-            if 'data' in results and 'raw_out' in results['data']:
-                print(results['data']['raw_out'])
-            return results
+            if response.status == 200:
+                results = await response.json()
+                if 'data' in results and 'raw_out' in results['data']:
+                    print(results['data']['raw_out'])
+                return results
+            else:
+                print(f"Request failed with status {response.status}")
+                return None
 
 # 主函数，创建异步任务队列
 async def main():
-    url = 'http://localhost:6006/api/tr_run'
+    url = 'http://localhost:6006/api/tr-run'
     sem = asyncio.Semaphore(20)  # 信号量，限制并发数量为20
     file_path = './attn.png'  # 假设有多个文件要处理
 
@@ -33,5 +37,3 @@ if __name__ == "__main__":
     asyncio.run(main())
     end = time.time()
     print(f"Time used: {end - start}s")
-
-# docker run -it --net=host --gpus=all --memory=16g --cpus=8 -v /d/Code_Space/HPC:/workspace -w /workspace nvidia/cuda:12.1.0-devel-ubuntu18.04
