@@ -8,7 +8,7 @@ from typing import Deque, Dict, Tuple
 
 import uvicorn
 
-ports = [8000 + i for i in range(1, 6)]
+ports = [8000 + i for i in range(1, 4)]
 
 # global variables
 index = 0
@@ -74,16 +74,19 @@ async def forward_request_to_backend(request: Request, selected_port: int):
     
     headers = {key: value for key, value in request.headers.items() if key != "host"}
     
-    async with aiohttp.ClientSession() as session:
-        async with session.request(
-            method=request.method,
-            url=url,
-            headers=headers,
-            data=await request.body(),
-            cookies=request.cookies
-        ) as response:
-            content = await response.read()
-            return content, response.status, response.headers
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.request(
+                method=request.method,
+                url=url,
+                headers=headers,
+                data=await request.body(),
+                cookies=request.cookies
+            ) as response:
+                content = await response.read()
+                return content, response.status, response.headers
+    except Exception as e:
+        return b'{"code": 400, "msg": "starlette.requests.ClientDisconnect"}', 500, response.headers
         
         
 async def process_request_queue():
@@ -102,7 +105,14 @@ async def process_request_queue():
                         break
 
             if selected_port is not None:
-                content, status, headers = await forward_request_to_backend(request, selected_port)
+                try:
+                    content, status, headers = await forward_request_to_backend(request, selected_port)
+                except aiohttp.client_exceptions.ClientOSError as e:
+                    future.set_result(Response(content=b'{"code": 400, "message": "not valid!"}'), status_code=400)
+                    return
+                except aiohttp.client_exceptions.ServerDisconnectedError as e:
+                    future.set_result(Response(content=b'{"code": 400, "message": "not valid!"}'), status_code=500)
+                    return
                 async with lock:
                     in_flight_requests[selected_port] -= 1
 
